@@ -1,6 +1,7 @@
 /**
  * Embedding Abstraction Layer
  * OpenAI-compatible API for various embedding providers.
+ * Supports automatic chunking for documents exceeding embedding context limits.
  *
  * Note: Some providers (e.g. Jina) support extra parameters like `task` and
  * `normalized` on the embeddings endpoint. The OpenAI SDK types do not include
@@ -9,6 +10,7 @@
 
 import OpenAI from "openai";
 import { createHash } from "node:crypto";
+import { smartChunk, ChunkResult } from "./chunker.js";
 
 // ============================================================================
 // Embedding Cache (LRU with TTL)
@@ -158,8 +160,10 @@ export class Embedder {
 
   /** Optional requested dimensions to pass through to the embedding provider (OpenAI-compatible). */
   private readonly _requestDimensions?: number;
+  /** Enable automatic chunking for long documents (default: true) */
+  private readonly _autoChunk: boolean;
 
-  constructor(config: EmbeddingConfig) {
+  constructor(config: EmbeddingConfig & { chunking?: boolean }) {
     // Resolve environment variables in API key
     const resolvedApiKey = resolveEnvVars(config.apiKey);
 
